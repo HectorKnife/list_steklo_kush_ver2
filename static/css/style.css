@@ -1,0 +1,48 @@
+input {
+    width: 4rem;
+}
+#status-input {
+    width: 8rem;
+}
+.container-scroll {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 0.5rem;
+}
+.scroll-1 {
+    max-height: 350px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.scroll-2 {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.block-function {
+    margin-bottom: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+}
+.border-function {
+    border: 1px solid #ccc;
+}
+.block-function:last-child {
+    margin-bottom: 0rem;
+}
+.nav.nav-tabs .nav-link {
+    margin-right: 1rem;
+    color: #898989;
+}
+.nav.nav-tabs .nav-link.active {
+    color: #000;
+}
+.input-block {
+    display: flex;
+    justify-content: space-between;
+}
+.text-muted {
+    font-size:14px;
+}
