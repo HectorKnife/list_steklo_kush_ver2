@@ -5,37 +5,77 @@ function updateCharts(res) {
     const ctxLine = document.getElementById('lineChart').getContext('2d');
     const ctxRadar = document.getElementById('radarChart').getContext('2d');
 
-    // 1. Линейный график (все X_i от 0 до 1)
+    // Линейный график
     const datasets = res.X.map((data, i) => ({
-        label: `X${i + 1}`,
+        label: `X${i+1}: ${xNames[i]}`,
         data: data,
+        borderColor: COLORS[i],
+        backgroundColor: COLORS[i] + '20',
         borderWidth: 2,
-        fill: false
+        fill: false,
+        tension: 0.3,
+        pointRadius: 1
     }));
 
     if (lineChart) lineChart.destroy();
     lineChart = new Chart(ctxLine, {
-    type: 'line',
-    data: { labels: res.time.map(t => t.toFixed(2)), datasets: datasets },
-    options: {
-        scales: { 
-            y: { min: 0, max: 1 } // Оставьте только Y
-            // Удалите блок x: { min: 0, max: 1 }
+        type: 'line',
+        data: { 
+            labels: res.time.map(t => t.toFixed(2)), 
+            datasets: datasets 
         },
-        responsive: true
-    }
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 8,
+                        font: { size: 11 },
+                        generateLabels: function(chart) {
+                            return chart.data.datasets.map((ds, i) => ({
+                                text: `X${i+1}`,
+                                fillStyle: ds.borderColor,
+                                strokeStyle: ds.borderColor,
+                                lineWidth: 2,
+                                hidden: false,
+                                index: i,
+                                pointStyle: 'line'
+                            }));
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return `X${ctx.datasetIndex+1}: ${ctx.raw.toFixed(3)}`;
+                        }
+                    }
+                }
+            },
+            scales: { 
+                x: { title: { display: true, text: 'Время' } },
+                y: { min: 0, max: 1, title: { display: true, text: 'Значение' } } 
+            }
+        }
     });
 
-    // 2. Радарная диаграмма (временные срезы)
-    // Возьмем срез в 3-х точках: t=0, t=mid, t=end
+    // Радарная диаграмма
     const midIdx = Math.floor(res.time.length / 2);
     const endIdx = res.time.length - 1;
 
-    // Подготавливаем данные для 3-х точек во времени
+    const radarColors = [
+        'rgba(91, 140, 90, 0.3)',
+        'rgba(107, 123, 140, 0.3)',
+        'rgba(140, 107, 107, 0.3)'
+    ];
+    const radarBorders = ['#5B8C5A', '#6B7B8C', '#8C6B6B'];
+
     const radarData = [
-        { label: 't=0', data: res.X.map(row => row[0]), color: 'rgba(253, 67, 67, 0.5)' },
-        { label: `t=${res.time[midIdx].toFixed(1)}`, data: res.X.map(row => row[midIdx]), color: 'rgba(54, 162, 235, 0.5)' },
-        { label: `t=${res.time[endIdx].toFixed(1)}`, data: res.X.map(row => row[endIdx]), color: 'rgba(251, 226, 0, 0.5)' }
+        { label: 't=0', data: res.X.map(row => row[0]), color: radarColors[0], border: radarBorders[0] },
+        { label: `t=${res.time[midIdx].toFixed(1)}`, data: res.X.map(row => row[midIdx]), color: radarColors[1], border: radarBorders[1] },
+        { label: `t=${res.time[endIdx].toFixed(1)}`, data: res.X.map(row => row[endIdx]), color: radarColors[2], border: radarBorders[2] }
     ];
 
     if (radarChart) radarChart.destroy();
@@ -47,12 +87,22 @@ function updateCharts(res) {
                 label: d.label,
                 data: d.data,
                 backgroundColor: d.color,
-                borderColor: d.color.replace('0.5', '1'), 
-                borderWidth: 2
+                borderColor: d.border,
+                borderWidth: 2,
+                pointRadius: 2
             }))
         },
         options: {
             responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return `X${ctx.dataIndex+1}: ${ctx.raw.toFixed(3)}`;
+                        }
+                    }
+                }
+            },
             scales: { r: { min: 0, max: 1 } }
         }
     });

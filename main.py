@@ -5,14 +5,16 @@ from pydantic import BaseModel
 from typing import List
 from scipy.integrate import solve_ivp
 import numpy as np
+import pathlib
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = pathlib.Path(__file__).parent
 
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Модель данных для приема запроса
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
 class SimulationData(BaseModel):
     X0: List[float]
     norms: List[float]
@@ -21,11 +23,12 @@ class SimulationData(BaseModel):
     t_end: float = 10.0
     steps: int = 100
 
-# Главный маршрут для отображения index.html
 @app.get("/")
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
+    return templates.TemplateResponse(
+        request=request,  # ← правильно
+        name="index.html"
+    )
 def get_poly_val(coeffs, var):
     return coeffs[0]*(var**3) + coeffs[1]*(var**2) + coeffs[2]*var + coeffs[3]
 
