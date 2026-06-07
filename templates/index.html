@@ -36,11 +36,39 @@
             <div id="z-params-container"><h5>Возмущения Z<sub>k</sub>(t)</h5></div>
         </div>
         <div class="tab-pane fade" id="results">
-            <div class="row">
-                <div class="col-md-8"><canvas id="lineChart"></canvas></div>
-                <div class="col-md-4"><canvas id="radarChart"></canvas></div>
+            <!-- Линейный график -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h5>Динамика изменения параметров X₁–X₁₃</h5>
+                    <div style="height: 400px;">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
             </div>
-            <button class="btn btn-primary mt-3" id="calcBtn">Рассчитать систему</button>
+            
+            <!-- Три радара в ряд -->
+            <div class="row">
+                <div class="col-md-4">
+                    <h6 class="text-center">Начало процесса</h6>
+                    <div style="height: 350px;">
+                        <canvas id="radarChart0"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-center">Середина процесса</h6>
+                    <div style="height: 350px;">
+                        <canvas id="radarChart1"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-center">Конец процесса</h6>
+                    <div style="height: 350px;">
+                        <canvas id="radarChart2"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary mt-4" id="calcBtn">Рассчитать систему</button>
         </div>
         <div class="mt-3">
             <button class="btn btn-warning" id="randomBtn">Заполнить рандомом</button>
