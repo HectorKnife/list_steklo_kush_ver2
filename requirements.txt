@@ -1,6 +1,2 @@
 fastapi
 uvicorn
-scipy
-numpy
-jinja2
-python-multipart
