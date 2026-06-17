@@ -1,120 +1,139 @@
 let lineChart = null;
 let radarCharts = [null, null, null];
 
-function updateCharts(res) {
-    // ========================================
-    // ЛИНЕЙНЫЙ ГРАФИК (14 линий)
-    // ========================================
-    const ctxLine = document.getElementById('lineChart');
-    if (!ctxLine) return;
+function destroyChart(chart) {
+    if (chart) chart.destroy();
+}
 
-    const datasets = res.X.map((data, i) => ({
-        label: `X${i+1}: ${xNames[i]}`,
-        data: data,
+function shortName(index) {
+    return `X${index + 1}`;
+}
+
+function updateResultMeta(res) {
+    const meta = document.getElementById("resultMeta");
+    if (!meta) return;
+    const lastTime = res.time[res.time.length - 1];
+    meta.textContent = `${res.time.length} точек, t = ${lastTime.toFixed(2)}`;
+}
+
+function buildLineChart(res) {
+    const canvas = document.getElementById("lineChart");
+    if (!canvas) return;
+
+    const datasets = res.X.map((values, i) => ({
+        label: `${shortName(i)}: ${xNames[i]}`,
+        data: values,
         borderColor: COLORS[i],
-        backgroundColor: COLORS[i] + '20',
+        backgroundColor: `${COLORS[i]}22`,
         borderWidth: 2,
         fill: false,
-        tension: 0.3,
-        pointRadius: 1
+        tension: 0.25,
+        pointRadius: 0,
+        pointHoverRadius: 4
     }));
 
-    if (lineChart) lineChart.destroy();
-    lineChart = new Chart(ctxLine, {
-        type: 'line',
+    destroyChart(lineChart);
+    lineChart = new Chart(canvas, {
+        type: "line",
         data: {
             labels: res.time.map(t => t.toFixed(2)),
-            datasets: datasets
+            datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: "index"
+            },
             plugins: {
                 legend: {
-                    position: 'right',
+                    position: "right",
                     labels: {
-                        usePointStyle: true,
-                        padding: 6,
-                        font: { size: 10 },
-                        boxWidth: 12,
-                        generateLabels: function(chart) {
-                            return chart.data.datasets.map((ds, i) => ({
-                                text: `X${i+1}`,
-                                fillStyle: ds.borderColor,
-                                strokeStyle: ds.borderColor,
-                                lineWidth: 2,
-                                hidden: false,
-                                index: i,
-                                pointStyle: 'line'
-                            }));
-                        }
+                        boxWidth: 28,
+                        boxHeight: 3,
+                        padding: 10,
+                        font: { size: 11 }
                     }
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(ctx) {
+                        label(ctx) {
                             const i = ctx.datasetIndex;
-                            return `X${i+1} (${xNames[i]}): ${ctx.raw.toFixed(4)}`;
+                            return `${shortName(i)} (${xNames[i]}): ${ctx.raw.toFixed(4)}`;
                         }
                     }
                 }
             },
             scales: {
-                x: { title: { display: true, text: 'Время (t)' } },
-                y: { min: 0, max: 1, title: { display: true, text: 'Значение' } }
+                x: {
+                    title: { display: true, text: "Время t" },
+                    grid: { color: "#eef2f5" }
+                },
+                y: {
+                    min: 0,
+                    max: 1,
+                    title: { display: true, text: "Нормированное значение" },
+                    grid: { color: "#eef2f5" }
+                }
             }
         }
     });
+}
 
-    // ========================================
-    // ТРИ РАДАРНЫЕ ДИАГРАММЫ
-    // ========================================
-    const timeIndices = [
-        { idx: 0, label: 't = 0 (начало)' },
-        { idx: Math.floor(res.time.length / 2), label: `t = ${res.time[Math.floor(res.time.length/2)].toFixed(1)}` },
-        { idx: res.time.length - 1, label: `t = ${res.time[res.time.length-1].toFixed(1)}` }
+function buildRadarCharts(res) {
+    const snapshots = [
+        { idx: 0, label: "t = 0" },
+        {
+            idx: Math.floor(res.time.length / 2),
+            label: `t = ${res.time[Math.floor(res.time.length / 2)].toFixed(2)}`
+        },
+        {
+            idx: res.time.length - 1,
+            label: `t = ${res.time[res.time.length - 1].toFixed(2)}`
+        }
     ];
 
     const radarColors = [
-        { bg: 'rgba(91, 140, 90, 0.3)', border: '#5B8C5A' },
-        { bg: 'rgba(107, 123, 140, 0.3)', border: '#6B7B8C' },
-        { bg: 'rgba(140, 107, 107, 0.3)', border: '#8C6B6B' }
+        { bg: "rgba(35, 100, 170, 0.20)", border: "#2364AA" },
+        { bg: "rgba(115, 191, 184, 0.24)", border: "#32827D" },
+        { bg: "rgba(234, 115, 23, 0.20)", border: "#B85612" }
     ];
 
-    timeIndices.forEach((t, chartIdx) => {
-        const canvas = document.getElementById(`radarChart${chartIdx}`);
+    snapshots.forEach((snapshot, chartIndex) => {
+        const canvas = document.getElementById(`radarChart${chartIndex}`);
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
 
-        if (radarCharts[chartIdx]) radarCharts[chartIdx].destroy();
-
-        radarCharts[chartIdx] = new Chart(ctx, {
-            type: 'radar',
+        destroyChart(radarCharts[chartIndex]);
+        radarCharts[chartIndex] = new Chart(canvas, {
+            type: "radar",
             data: {
-                labels: Array.from({length: 14}, (_, i) => `X${i+1}`),
+                labels: Array.from({ length: VARIABLE_COUNT }, (_, i) => shortName(i)),
                 datasets: [{
-                    label: t.label,
-                    data: res.X.map(row => row[t.idx]),
-                    backgroundColor: radarColors[chartIdx].bg,
-                    borderColor: radarColors[chartIdx].border,
+                    label: snapshot.label,
+                    data: res.X.map(row => row[snapshot.idx]),
+                    backgroundColor: radarColors[chartIndex].bg,
+                    borderColor: radarColors[chartIndex].border,
                     borderWidth: 2,
-                    pointRadius: 3
+                    pointRadius: 3,
+                    pointBackgroundColor: radarColors[chartIndex].border
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
+                    legend: { display: false },
                     title: {
                         display: true,
-                        text: t.label,
-                        font: { size: 14, weight: 'bold' }
+                        text: snapshot.label,
+                        font: { size: 14, weight: "bold" }
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(ctx) {
+                            label(ctx) {
                                 const i = ctx.dataIndex;
-                                return `X${i+1} (${xNames[i]}): ${ctx.raw.toFixed(4)}`;
+                                return `${shortName(i)} (${xNames[i]}): ${ctx.raw.toFixed(4)}`;
                             }
                         }
                     }
@@ -123,10 +142,26 @@ function updateCharts(res) {
                     r: {
                         min: 0,
                         max: 1,
-                        ticks: { stepSize: 0.2 }
+                        ticks: {
+                            stepSize: 0.2,
+                            backdropColor: "transparent"
+                        },
+                        grid: { color: "#dde5ec" },
+                        angleLines: { color: "#dde5ec" }
                     }
                 }
             }
         });
     });
+}
+
+function updateCharts(res) {
+    if (typeof Chart === "undefined") {
+        setStatus("Chart.js не найден.", "error");
+        return;
+    }
+
+    updateResultMeta(res);
+    buildLineChart(res);
+    buildRadarCharts(res);
 }

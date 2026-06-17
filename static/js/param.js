@@ -1,167 +1,277 @@
-// Список имен переменных
+const VARIABLE_COUNT = 13;
+const DISTURBANCE_COUNT = 5;
+
 const xNames = [
-    "Эффективность функционирования DWH",
-    "Качество ПО",
-    "Корректность ПО",
-    "Надёжность ПО",
-    "Доступность ПО",
-    "Возможность интенсивного использования ПО",
-    "Прослеживаемость ПО",
-    "Функциональная полнота ПО",
-    "Обеспечение последовательности работ",
-    "Практичность ПО",
-    "Устойчивость к ошибкам данных",
-    "Эффективность выполнения транзакций",
-    "Степень мотивации персонала",
-    "Удобство тестирования ПО"
+    "Скорость выработки ленты стекла",
+    "Скорость вращения роликов утоняющих устройств",
+    "Температура расплава металла",
+    "Температура кожуха дна",
+    "Температура бортов ванны расплава",
+    "Стабильность положения ленты в ванне расплава",
+    "Расход электроэнергии",
+    "Расход природного газа",
+    "Расход защитной атмосферы",
+    "Расход металла",
+    "Уровень квалификации оператора",
+    "Размер и состав дежурной бригады",
+    "Сложность выбранного режима производства"
 ];
 
-// МАСКА ВЛИЯНИЙ: только значимые связи (i: [j1, j2, ...])
 const INFLUENCE_MASK = {
-    0:  [1, 5, 6, 7, 8, 9, 10, 12],          // X₁ ← X₂,X₆,X₇,X₈,X₉,X₁₀,X₁₁,X₁₃
-    1:  [0, 5, 6, 7, 8, 9, 10, 12],          // X₂ ← X₁,X₆,X₇,X₈,X₉,X₁₀,X₁₁,X₁₃
-    2:  [3, 4, 6, 11, 12],                    // X₃ ← X₄,X₅,X₇,X₁₂,X₁₃
-    3:  [2, 10, 11],                           // X₄ ← X₃,X₁₁,X₁₂
-    4:  [2, 10, 11],                           // X₅ ← X₃,X₁₁,X₁₂
-    5:  [0, 1, 2, 10],                         // X₆ ← X₁,X₂,X₃,X₁₁
-    6:  [0, 1, 2, 10],                         // X₇ ← X₁,X₂,X₃,X₁₁
-    7:  [0, 1, 2, 10],                         // X₈ ← X₁,X₂,X₃,X₁₁
-    8:  [0, 1, 2, 10],                         // X₉ ← X₁,X₂,X₃,X₁₁
-    9:  [0, 1, 2, 10],                         // X₁₀ ← X₁,X₂,X₃,X₁₁
-    10: [12],                                   // X₁₁ ← X₁₃
-    11: [12],                                   // X₁₂ ← X₁₃
-    12: [],                                     // X₁₃ — только управление p(t)
-    13: [12]                                    // X₁₄ ← X₁₃
+    0: [1, 5, 6, 7, 8, 9, 10, 12],
+    1: [0, 5, 6, 7, 8, 9, 10, 12],
+    2: [3, 4, 6, 7, 9, 12],
+    3: [2, 4, 6, 7],
+    4: [2, 3, 6, 7],
+    5: [0, 1, 10, 11, 12],
+    6: [0, 1, 2, 3, 4, 10, 12],
+    7: [2, 3, 4, 10, 12],
+    8: [5, 10, 12],
+    9: [2, 3, 4],
+    10: [0, 1, 5, 11, 12],
+    11: [0, 5, 10, 12],
+    12: [0, 10, 11]
 };
 
-// Z-возмущения: какие Z влияют на каждый X
-const Z_MASK = {
-    0:  [0, 1, 2, 3, 4],    // X₁: все 5 возмущений
-    1:  [0, 1, 2, 3, 4],    // X₂: все 5
-    2:  [0, 1, 2],          // X₃: ζ₁,ζ₂,ζ₃
-    3:  [0, 1, 4],          // X₄: ζ₁,ζ₂,ζ₅
-    4:  [0, 1, 4],          // X₅: ζ₁,ζ₂,ζ₅
-    5:  [2, 3],             // X₆: ζ₃,ζ₄
-    6:  [2, 3],             // X₇: ζ₃,ζ₄
-    7:  [2, 3],             // X₈: ζ₃,ζ₄
-    8:  [2, 3],             // X₉: ζ₃,ζ₄
-    9:  [2, 3],             // X₁₀: ζ₃,ζ₄
-    10: [0, 1, 2, 3, 4],    // X₁₁: все 5
-    11: [0, 1, 2, 3, 4],    // X₁₂: все 5
-    12: [0, 1, 2, 3, 4],    // X₁₃: все 5
-    13: [0, 1, 2, 3, 4]     // X₁₄: все 5
-};
+const DEFAULT_LINEAR_COEFF = 0.015;
+
+const X_EFFECTS = [
+    [0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, -1],
+    [1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+    [0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1],
+    [0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0],
+    [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+    [-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, -1],
+    [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+    [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, -1, 0, 1],
+    [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 1],
+    [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 1],
+    [1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 1],
+    [-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0]
+];
+
+const DEFAULT_Z_EFFECTS = [
+    [-1, -1, -1, 0, -1],
+    [-1, -1, -1, 0, -1],
+    [-1, -1, 0, 0, -1],
+    [-1, -1, 0, 1, -1],
+    [-1, -1, 0, 1, -1],
+    [-1, 0, 0, 1, -1],
+    [1, 0, 0, 0, 1],
+    [0, 1, 0, 0, 0],
+    [0, 0, 1, 0, 1],
+    [0, 0, 0, 0, 1],
+    [-1, -1, -1, 1, -1],
+    [-1, 0, -1, 0, -1],
+    [-1, -1, -1, 0, -1]
+];
+
+let zEffects = DEFAULT_Z_EFFECTS.map(row => [...row]);
 
 const zNames = [
-    "Увеличение количества источников новых данных",
-    "Частота изменения периодов отчётности",
-    "Сокращение поддержки вендора (санкции)",
-    "Рост перехода на OpenSource решения",
-    "Увеличение новых стандартов OpenSource"
+    "Отключение электроэнергии",
+    "Отключение природного газа",
+    "Прекращение подачи защитной атмосферы",
+    "Параметры внешней среды",
+    "Износ и отказ оборудования"
 ];
 
-// Приглушённая палитра (пастельные тона)
 const COLORS = [
-    '#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#3B1F2B',
-    '#006494', '#8B1E3F', '#E55812', '#2D6A4F', '#7B2D8B',
-    '#1B98A6', '#D1345B', '#C3830D', '#5B8C5A'
+    "#2364AA", "#3DA5D9", "#73BFB8", "#FEC601", "#EA7317",
+    "#8C2F39", "#5B8E7D", "#5A4E7C", "#C33C54", "#2F4858",
+    "#7A9E7E", "#BC6C25", "#6D597A"
 ];
+
+function setStatus(message, type = "") {
+    const statusLine = document.getElementById("statusLine");
+    if (!statusLine) return;
+    statusLine.textContent = message;
+    statusLine.classList.toggle("is-error", type === "error");
+    statusLine.classList.toggle("is-ok", type === "ok");
+}
+
+function activateTab(tabId) {
+    document.querySelectorAll(".app-tab").forEach(button => {
+        button.classList.toggle("active", button.dataset.tabTarget === tabId);
+    });
+    document.querySelectorAll(".tab-panel").forEach(panel => {
+        panel.classList.toggle("active", panel.id === tabId);
+    });
+}
+
+function createNumberInput({ id, value = 0, step = "0.01", className = "form-control form-control-sm", data = {} }) {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.value = value;
+    input.step = step;
+    input.className = className;
+    if (id) input.id = id;
+    Object.entries(data).forEach(([key, val]) => {
+        input.dataset[key] = val;
+    });
+    return input;
+}
+
+function defaultPolyCoeff(i, j, c) {
+    return c === 2 ? X_EFFECTS[i][j] * DEFAULT_LINEAR_COEFF : 0;
+}
+
+function applyDefaultModel() {
+    document.querySelectorAll("input[id^='X0_']").forEach(input => {
+        input.value = "0.50";
+    });
+    document.querySelectorAll("input[id^='norm_']").forEach(input => {
+        input.value = "1.00";
+    });
+    document.querySelectorAll("#poly-matrix-container input").forEach(input => {
+        const i = Number.parseInt(input.dataset.i, 10);
+        const j = Number.parseInt(input.dataset.j, 10);
+        const c = Number.parseInt(input.dataset.c, 10);
+        input.value = defaultPolyCoeff(i, j, c).toString();
+    });
+    document.querySelectorAll(".z-input").forEach(input => {
+        input.value = "0";
+    });
+    document.getElementById("tEnd").value = "10";
+    document.getElementById("steps").value = "120";
+    zEffects = DEFAULT_Z_EFFECTS.map(row => [...row]);
+}
 
 function generateXParams() {
-    const container = document.getElementById('x-params-container');
-    if (!container) return;
+    const container = document.getElementById("x-params-container");
     container.innerHTML = `
-        <div class="row mb-2 fw-bold text-secondary">
-            <div class="col-5">Параметр</div>
-            <div class="col-3">Нач. знач (X₀)</div>
-            <div class="col-3">Норма (maxX)</div>
-        </div>`;
-    
+        <div class="section-title">
+            <h2>Начальные параметры</h2>
+            <span>X0 и нормировочные коэффициенты</span>
+        </div>
+        <div class="param-grid"></div>
+    `;
+
+    const grid = container.querySelector(".param-grid");
     xNames.forEach((name, i) => {
-        container.innerHTML += `
-            <div class="row mb-2 align-items-center">
-                <div class="col-5"><b>X${i+1}</b>: ${name}</div>
-                <div class="col-3"><input type="number" id="X0_${i}" value="0.5" step="0.01" class="form-control form-control-sm"></div>
-                <div class="col-3"><input type="number" id="norm_${i}" value="1.0" step="0.1" class="form-control form-control-sm"></div>
-            </div>`;
+        const row = document.createElement("div");
+        row.className = "param-row";
+        row.innerHTML = `
+            <div class="param-name">X${i + 1}<small>${name}</small></div>
+            <label><small>X0</small></label>
+            <label><small>Норма</small></label>
+        `;
+        row.children[1].appendChild(createNumberInput({ id: `X0_${i}`, value: "0.50", step: "0.01" }));
+        row.children[2].appendChild(createNumberInput({ id: `norm_${i}`, value: "1.00", step: "0.10" }));
+        grid.appendChild(row);
     });
 }
 
 function generatePolyMatrix() {
-    const container = document.getElementById('poly-matrix-container');
-    if (!container) return;
-    container.innerHTML = '<h5>Коэффициенты полиномов влияния</h5><p class="text-muted small">f(Xⱼ) = a·Xⱼ³ + b·Xⱼ² + c·Xⱼ + d</p>';
-    
-    let fCounter = 1;
-    
-    for (let i = 0; i < 14; i++) {
+    const container = document.getElementById("poly-matrix-container");
+    container.innerHTML = `
+        <div class="section-title">
+            <h2>Полиномиальные связи</h2>
+            <span>f(Xj) = a*X^3 + b*X^2 + c*X + d</span>
+        </div>
+    `;
+
+    let functionCounter = 1;
+    for (let i = 0; i < VARIABLE_COUNT; i += 1) {
         const influences = INFLUENCE_MASK[i] || [];
-        if (influences.length === 0) {
-            container.innerHTML += `<div class="alert alert-info py-1 px-2 mb-2"><small>X${i+1} (${xNames[i]}) — только управление p(t), нет X-связей</small></div>`;
-            continue;
-        }
-        
-        container.innerHTML += `<h6 class="mt-3 text-secondary border-bottom pb-1">Влияние на X${i+1} — ${xNames[i]}</h6>`;
-        
-        for (const j of influences) {
-            container.innerHTML += `
-                <div class="row mb-1 align-items-center py-1" style="font-size:13px;">
-                    <div class="col-12">
-                        <b>f${fCounter}(X${j+1})</b> = 
-                        <span style="display: inline-flex; align-items: center; gap: 1px; flex-wrap: wrap;">
-                            <input type="number" class="form-control form-control-sm" data-i="${i}" data-j="${j}" data-c="0" placeholder="a" step="0.01" style="width:55px;">
-                            ·X${j+1}³ +
-                            <input type="number" class="form-control form-control-sm" data-i="${i}" data-j="${j}" data-c="1" placeholder="b" step="0.01" style="width:55px;">
-                            ·X${j+1}² +
-                            <input type="number" class="form-control form-control-sm" data-i="${i}" data-j="${j}" data-c="2" placeholder="c" step="0.01" style="width:55px;">
-                            ·X${j+1} +
-                            <input type="number" class="form-control form-control-sm" data-i="${i}" data-j="${j}" data-c="3" placeholder="d" step="0.01" style="width:55px;">
-                        </span>
-                        → <b>X${i+1}</b>
-                    </div>
-                </div>`;
-            fCounter++;
-        }
+        const group = document.createElement("div");
+        group.className = "poly-group";
+        group.innerHTML = `<h3>X${i + 1}: ${xNames[i]}</h3>`;
+
+        influences.forEach(j => {
+            const row = document.createElement("div");
+            row.className = "poly-row";
+            row.innerHTML = `
+                <div class="poly-title">f${functionCounter}(X${j + 1}) -> X${i + 1}<small>${xNames[j]}</small></div>
+                <label><span class="coeff-label">a</span></label>
+                <label><span class="coeff-label">b</span></label>
+                <label><span class="coeff-label">c</span></label>
+                <label><span class="coeff-label">d</span></label>
+            `;
+
+            for (let c = 0; c < 4; c += 1) {
+                row.children[c + 1].appendChild(createNumberInput({
+                    value: defaultPolyCoeff(i, j, c).toString(),
+                    step: "0.001",
+                    data: { i, j, c }
+                }));
+            }
+
+            group.appendChild(row);
+            functionCounter += 1;
+        });
+
+        container.appendChild(group);
     }
-    
-    container.innerHTML += `<div class="mt-2 text-muted small">Всего полиномов: <b>${fCounter - 1}</b></div>`;
 }
 
 function generateDisturbances() {
-    const container = document.getElementById('z-params-container');
-    if (!container) return;
-    container.innerHTML = '<h5>Возмущения ζₖ(t)</h5><p class="text-muted small">ζₖ(t) = a·t³ + b·t² + c·t + d</p>';
-    
-    for (let k = 0; k < 5; k++) {
-        container.innerHTML += `
-            <div class="mb-3 border-bottom pb-2">
-                <h6>ζ${k+1}: ${zNames[k]}</h6>
-                <div class="d-flex gap-2 flex-wrap">
-                    <div><small>a·t³</small><input type="number" class="form-control form-control-sm z-input" data-k="${k}" data-coeff="0" value="0" step="0.01" style="width:65px;"></div>
-                    <div><small>b·t²</small><input type="number" class="form-control form-control-sm z-input" data-k="${k}" data-coeff="1" value="0" step="0.01" style="width:65px;"></div>
-                    <div><small>c·t</small><input type="number" class="form-control form-control-sm z-input" data-k="${k}" data-coeff="2" value="0" step="0.01" style="width:65px;"></div>
-                    <div><small>d</small><input type="number" class="form-control form-control-sm z-input" data-k="${k}" data-coeff="3" value="0" step="0.01" style="width:65px;"></div>
-                </div>
-            </div>`;
-    }
+    const container = document.getElementById("z-params-container");
+    container.innerHTML = `
+        <div class="section-title">
+            <h2>Внешние возмущения</h2>
+            <span>Zk(t) = a*t^3 + b*t^2 + c*t + d</span>
+        </div>
+        <div class="disturbance-list"></div>
+    `;
+
+    const list = container.querySelector(".disturbance-list");
+    zNames.forEach((name, k) => {
+        const row = document.createElement("div");
+        row.className = "disturbance-row";
+        row.innerHTML = `
+            <div class="disturbance-title">Z${k + 1}<small>${name}</small></div>
+            <label><span class="coeff-label">a</span></label>
+            <label><span class="coeff-label">b</span></label>
+            <label><span class="coeff-label">c</span></label>
+            <label><span class="coeff-label">d</span></label>
+        `;
+
+        for (let c = 0; c < 4; c += 1) {
+            row.children[c + 1].appendChild(createNumberInput({
+                value: "0",
+                step: "0.001",
+                className: "form-control form-control-sm z-input",
+                data: { k, coeff: c }
+            }));
+        }
+
+        list.appendChild(row);
+    });
 }
+
+function clearInputs() {
+    applyDefaultModel();
+    setStatus("Восстановлена стартовая модель", "ok");
+}
+
+function fillRandomData() {
+    document.querySelectorAll("input[id^='X0_']").forEach(input => {
+        input.value = Math.random().toFixed(2);
+    });
+    document.querySelectorAll("input[id^='norm_']").forEach(input => {
+        input.value = (0.7 + Math.random() * 0.8).toFixed(2);
+    });
+    document.querySelectorAll("#poly-matrix-container input").forEach(input => {
+        input.value = (Math.random() * 0.08 - 0.04).toFixed(4);
+    });
+    document.querySelectorAll(".z-input").forEach(input => {
+        input.value = (Math.random() * 0.02 - 0.01).toFixed(4);
+    });
+    setStatus("Случайные данные заполнены", "ok");
+}
+
+document.querySelectorAll(".app-tab").forEach(button => {
+    button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
+});
 
 generateXParams();
 generatePolyMatrix();
 generateDisturbances();
 
-
-document.getElementById('randomBtn')?.addEventListener('click', () => {
-    document.querySelectorAll('input[id^="X0_"]').forEach(inp => inp.value = (Math.random()).toFixed(2));
-    document.querySelectorAll('input[id^="norm_"]').forEach(inp => inp.value = (0.5 + Math.random()).toFixed(2));
-    document.querySelectorAll('#poly-matrix-container input[type="number"]').forEach(inp => {
-        inp.value = ((Math.random() * 0.1 - 0.05)).toFixed(4);
-    });
-    document.querySelectorAll('.z-input').forEach(inp => inp.value = (Math.random() * 0.01).toFixed(4));
-});
-
-document.getElementById('clearBtn')?.addEventListener('click', () => {
-    document.querySelectorAll('input[type="number"]').forEach(inp => inp.value = '0');
-    document.querySelectorAll('input[id^="norm_"]').forEach(inp => inp.value = '1.0');
-    document.querySelectorAll('input[id^="X0_"]').forEach(inp => inp.value = '0.5');
+document.getElementById("randomBtn").addEventListener("click", fillRandomData);
+document.getElementById("clearBtn").addEventListener("click", clearInputs);
+document.getElementById("csvLoadBtn").addEventListener("click", () => {
+    document.getElementById("csvFileInput").click();
 });
